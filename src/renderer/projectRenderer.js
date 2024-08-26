@@ -5,6 +5,7 @@ const chartColors = Utils.CHART_COLORS;
 const transparentize = Utils.transparentize;
 
 const year = new Date().getFullYear();
+const twoDigitYear = year.toString().slice(-2);
 
 // Get issues by quarter
 async function getIssuesByQuarter(allIssues) {
@@ -36,14 +37,18 @@ async function getIssuesByQuarter(allIssues) {
         
         // Throughput is simply the total issues completed in the quarter
         const throughput = totalIssues;
-        
+ 
+        // Calculate cycle time for all issues
+        const cycleTime = calculateAverageCycleTime(calculateCycleTimeForAllIssues(issues));
+
         return {
             finishedIssues,
             resolvedBugs,
             bugDensity,
             totalIssues,
             velocity,
-            throughput
+            throughput,
+            cycleTime
         };
     });
 
@@ -115,23 +120,66 @@ async function getIssuesByMonth(issues) {
     };
 }
 
+// Function to calculate cycle time for all issues
+function calculateCycleTimeForAllIssues(issues) {
+    const cycleTimeMap = {};
+
+    issues.forEach(issue => {
+        const changelog = issue.changelog;
+        let inProgressTime = null;
+        let doneTime = null;
+
+        changelog.histories.forEach(history => {
+            history.items.forEach(item => {
+                if (item.field === 'status') {
+                    if (item.toString === 'In Development') {
+                        inProgressTime = new Date(history.created);
+                    } else if ((item.toString === 'Done' || item.toString === 'Ready for Prod')) {
+                        doneTime = new Date(history.created);
+                    }
+                }
+            });
+        });
+
+        if (inProgressTime && doneTime) {
+            const cycleTime = (doneTime - inProgressTime) / (1000 * 60 * 60 * 24); // Cycle time in days
+            cycleTimeMap[issue.key] = cycleTime;
+        } else {
+            cycleTimeMap[issue.key] = null; // No valid cycle time found
+        }
+    });
+
+    console.log('Cycle time map:', cycleTimeMap);
+    return cycleTimeMap;
+}
+
+function calculateAverageCycleTime(cycleTimeMap) {
+    const cycleTimes = Object.values(cycleTimeMap).filter(time => time !== null);
+    const totalCycleTime = cycleTimes.reduce((total, time) => total + time, 0);
+    const averageCycleTime = cycleTimes.length > 0 ? totalCycleTime / cycleTimes.length : 0;
+
+    return Math.ceil(averageCycleTime);
+}
+
 function updateUI(quarters, quarterData, montlyData) {
     // Prepare labels and data for the table (quarterly)
-    const quarterLabels = quarters.map(q => `Q${q.quarter}/${year}`);
+    const quarterLabels = quarters.map(q => `Q${q.quarter}/${twoDigitYear}`);
     const finishedIssuesQuarterly = quarterData.map(data => data.finishedIssues);
     const resolvedBugsQuarterly = quarterData.map(data => data.resolvedBugs);
     const bugDensityQuarterly = quarterData.map(data => data.bugDensity);
     const velocitiesQuarterly = quarterData.map(data => data.velocity);
     const throughputsQuarterly = quarterData.map(data => data.throughput);
+    const cycleTimeQuarterly = quarterData.map(data => data.cycleTime);
+
 
     // Update the table with quarterly data
-    updateTable(quarterLabels, finishedIssuesQuarterly, resolvedBugsQuarterly, bugDensityQuarterly, velocitiesQuarterly, throughputsQuarterly);
+    updateTable(quarterLabels, finishedIssuesQuarterly, resolvedBugsQuarterly, bugDensityQuarterly, velocitiesQuarterly, throughputsQuarterly, cycleTimeQuarterly);
 
     // Update the chart with monthly data
     updateChart(montlyData.labels, montlyData.finishedIssues, montlyData.resolvedBugs, montlyData.velocities, montlyData.throughputs);
 }
 
-function updateTable(labels, finishedIssues, resolvedBugs, bugDensities, velocities, throughputs) {
+function updateTable(labels, finishedIssues, resolvedBugs, bugDensities, velocities, throughputs, cycleTimes) {
     const tableBody = document.getElementById('issuesTableBody');
     tableBody.innerHTML = ''; // Clear the existing table content
 
@@ -142,25 +190,29 @@ function updateTable(labels, finishedIssues, resolvedBugs, bugDensities, velocit
         quarterCell.textContent = label;
         row.appendChild(quarterCell);
 
-        const finishedIssuesCell = document.createElement('td');
-        finishedIssuesCell.textContent = finishedIssues[index];
-        row.appendChild(finishedIssuesCell);
+        // const finishedIssuesCell = document.createElement('td');
+        // finishedIssuesCell.textContent = finishedIssues[index];
+        // row.appendChild(finishedIssuesCell);
 
-        const resolvedBugsCell = document.createElement('td');
-        resolvedBugsCell.textContent = resolvedBugs[index];
-        row.appendChild(resolvedBugsCell);
+        // const resolvedBugsCell = document.createElement('td');
+        // resolvedBugsCell.textContent = resolvedBugs[index];
+        // row.appendChild(resolvedBugsCell);
 
         const throughputCell = document.createElement('td');
         throughputCell.textContent = throughputs[index];
         row.appendChild(throughputCell);
-        
-        const bugDensitiesCell = document.createElement('td');
-        bugDensitiesCell.textContent = bugDensities[index];
-        row.appendChild(bugDensitiesCell);
 
         const velocityCell = document.createElement('td');
         velocityCell.textContent = velocities[index];
         row.appendChild(velocityCell);
+
+        const cycleTimeCell = document.createElement('td');
+        cycleTimeCell.textContent = cycleTimes[index];
+        row.appendChild(cycleTimeCell);
+
+        const bugDensitiesCell = document.createElement('td');
+        bugDensitiesCell.textContent = bugDensities[index];
+        row.appendChild(bugDensitiesCell);
 
         tableBody.appendChild(row);
     });

@@ -5,6 +5,7 @@ const chartColors = Utils.CHART_COLORS;
 const transparentize = Utils.transparentize;
 
 const year = new Date().getFullYear();
+const twoDigitYear = year.toString().slice(-2);
 
 // Function to calculate quality metrics
 async function getBugsByQuarter(allIssues) {
@@ -129,7 +130,7 @@ function updateUI(quarters, quarterlyData, montlyData) {
 
 // Function to update the quality metrics table
 function updateTable(quarters, quarterlyData) {
-    const quarterLabels = quarters.map(q => `Q${q.quarter}/${year}`);
+    const quarterLabels = quarters.map(q => `Q${q.quarter}/${twoDigitYear}`);
     const bugsReportedQuarterly = quarterlyData.map(data => data.bugsReported);
     const bugsFixedQuarterly = quarterlyData.map(data => data.bugsFixed);
     const bugsEscapedQuarterly = quarterlyData.map(data => data.bugsEscaped);
