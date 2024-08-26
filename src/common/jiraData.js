@@ -21,7 +21,7 @@ async function fetchAllIssues(projectKey) {
     let total = 0;
     let allIssues = [];
 
-    const jql = `project IN (${projectKey}) AND ((issuetype IN (Story, Improvement, "New Feature", Refactoring, "Technical Debt", "Technical Task", Bug) AND status CHANGED TO ("READY FOR UAT BUILD", "SIT DONE") during ('2024-01-01', 1w) AND status NOT IN (Canceled, Cancelled)) OR (issuetype ="Sub-Bug" AND status CHANGED TO (Done) DURING ('2024-01-01', 1w))) ORDER BY resolved ASC`;
+    const jql = `project IN (${projectKey}) AND ((issuetype IN (Story, Improvement, "New Feature", Refactoring, "Technical Debt", "Technical Task", Bug) AND status CHANGED TO ("READY FOR UAT BUILD", "SIT DONE") during (startOfYear(), 1w) AND status NOT IN (Canceled, Cancelled)) OR (issuetype ="Sub-Bug" AND status CHANGED TO (Done) DURING (startOfYear(), 1w))) ORDER BY resolved ASC`;
     const fields = `issuetype,resolutiondate,created,resolved,priority,summary,status,reporter,customfield_13464,resolution,customfield_13393,customfield_13456,fixVersions,versions,project,customfield_10022,customfield_13230`;
 
     try {
@@ -57,7 +57,7 @@ async function fetchAllBugs(projectKey) {
     let total = 0;
     let allIssues = [];
 
-    const jql = `project in (${projectKey}) AND ((issuetype IN (Bug, Sub-Bug) AND status NOT IN (Canceled, Cancelled)) AND ((status NOT IN ("Done", "In Production") AND resolved IS EMPTY) OR created >= 2024-01-01)) ORDER BY created DESC`;
+    const jql = `project in (${projectKey}) AND ((issuetype IN (Bug, Sub-Bug) AND status NOT IN (Canceled, Cancelled)) AND ((status NOT IN ("Done", "In Production") AND resolved IS EMPTY) OR created >= startOfYear())) ORDER BY created DESC`;
     const fields = `issuetype,resolutiondate,created,resolved,priority,summary,status,reporter,customfield_13464,resolution,customfield_13393,customfield_13456,fixVersions,versions,project,customfield_10022,customfield_13230`;
 
     try {
