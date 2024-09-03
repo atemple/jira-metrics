@@ -32,7 +32,7 @@ async function getBugsByQuarter(allIssues) {
         }).length;
         const bugsEscaped = solvedIssues.filter(issue => {
             const environment = issue.fields.customfield_13464;
-            return (Array.isArray(environment)) && environment.some(field => (field.value === 'UAT' || field.value === 'PROD'));
+            return (Array.isArray(environment)) && environment.some(field => (field.value === 'UAT'));
         }).length;
         const bugsProd = solvedIssues.filter(issue => {
             const environment = issue.fields.customfield_13464;
@@ -99,7 +99,7 @@ async function getBugsByMonth(allIssues) {
             if (issue.fields.resolution) monthlyIssues[resolutionMonthKey].bugsFixed++;
 
             const environment = issue.fields.customfield_13464;
-            if (Array.isArray(environment) && environment.some(field => (field.value === 'UAT' || field.value === 'PROD'))) monthlyIssues[resolutionMonthKey].bugsEscaped++;
+            if (Array.isArray(environment) && environment.some(field => (field.value === 'UAT'))) monthlyIssues[resolutionMonthKey].bugsEscaped++;
             if (Array.isArray(environment) && environment.some(field => field.value === 'PROD')) monthlyIssues[resolutionMonthKey].bugsProd++;
         }
 
@@ -202,20 +202,18 @@ function updateChart(bugMetrics) {
                     borderWidth: 2,
                 },
                 {
-                    label: 'Bugs in Prod',
-                    data: bugsProd,
-                    borderColor: chartColors.purple,
-                    backgroundColor: transparentize(chartColors.purple, 0.5),
-                    borderWidth: 2,
-                    stack: 'combined',
-                },
-                {
                     label: 'Bugs Escaped',
                     data: bugsEscaped,
                     borderColor: chartColors.orange,
                     backgroundColor: transparentize(chartColors.orange, 0.5),
                     borderWidth: 2,
-                    stack: 'combined',
+                },
+                {
+                    label: 'Bugs in Prod',
+                    data: bugsProd,
+                    borderColor: chartColors.purple,
+                    backgroundColor: transparentize(chartColors.purple, 0.5),
+                    borderWidth: 2,
                 }
             ],
         },
