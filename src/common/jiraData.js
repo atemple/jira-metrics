@@ -1,4 +1,4 @@
-require('dotenv').config();
+const { ipcRenderer } = require('electron');
 const axios = require('axios');
 const https = require('https');
 
@@ -6,13 +6,26 @@ const https = require('https');
 const issuesCache = new Map();
 const bugsCache = new Map();
 
-// List of project keys to preload
-const projectKeys = process.env.JIRA_PROJECT_KEYS.split(',');
+// Jira configs
+let jiraApiToken;
+let jiraEmail;
+let jiraBaseDomain;
+let jiraProjectKeys;
+
+// Receive and load the config data
+ipcRenderer.on('load-config', (event, config) => {
+    jiraApiToken = config.jiraApiToken || '';
+    jiraEmail = config.jiraEmail || '';
+    jiraBaseDomain = config.jiraBaseDomain || '';
+    jiraProjectKeys = config.jiraProjectKeys.split(',') || '';
+
+});
 
 // Create an HTTPS agent that allows self-signed certificates
 const httpsAgent = new https.Agent({
     rejectUnauthorized: false
 });
+
 
 // Fetch issues from Jira
 async function fetchAllIssues(projectKey) {
@@ -26,10 +39,10 @@ async function fetchAllIssues(projectKey) {
 
     try {
         do {
-            const url = `${process.env.JIRA_BASE_URL}/rest/api/2/search?maxResults=${maxResults}&startAt=${startAt}&expand=changelog&fields=${encodeURIComponent(fields)}&jql=${encodeURIComponent(jql)}`;
+            const url = `${jiraBaseDomain}/rest/api/2/search?maxResults=${maxResults}&startAt=${startAt}&expand=changelog&fields=${encodeURIComponent(fields)}&jql=${encodeURIComponent(jql)}`;
             const response = await axios.get(url, {
                 headers: {
-                    'Authorization': `Basic ${Buffer.from(`${process.env.JIRA_EMAIL}:${process.env.JIRA_API_TOKEN}`).toString('base64')}`,
+                    'Authorization': `Basic ${Buffer.from(`${jiraEmail}:${jiraApiToken}`).toString('base64')}`,
                     'Accept': 'application/json'
                 },
                 httpsAgent
@@ -62,10 +75,10 @@ async function fetchAllBugs(projectKey) {
 
     try {
         do {
-            const url = `${process.env.JIRA_BASE_URL}/rest/api/2/search?maxResults=${maxResults}&startAt=${startAt}&expand=changelog&fields=${encodeURIComponent(fields)}&jql=${encodeURIComponent(jql)}`;
+            const url = `${jiraBaseDomain}/rest/api/2/search?maxResults=${maxResults}&startAt=${startAt}&expand=changelog&fields=${encodeURIComponent(fields)}&jql=${encodeURIComponent(jql)}`;
             const response = await axios.get(url, {
                 headers: {
-                    'Authorization': `Basic ${Buffer.from(`${process.env.JIRA_EMAIL}:${process.env.JIRA_API_TOKEN}`).toString('base64')}`,
+                    'Authorization': `Basic ${Buffer.from(`${jiraEmail}:${jiraApiToken}`).toString('base64')}`,
                     'Accept': 'application/json'
                 },
                 httpsAgent
@@ -101,7 +114,7 @@ async function getJiraBugs(projectKey) {
     try {
         if (! bugsCache.has(projectKey)) {
              showLoading();
-             for (const projectKey of projectKeys) {
+             for (const projectKey of jiraProjectKeys) {
                  const issues = await fetchAllBugs(projectKey);
                  bugsCache.set(projectKey, issues);
              }
@@ -119,7 +132,7 @@ async function getJiraIssues(projectKey) {
     try {
        if (! issuesCache.has(projectKey)) {
             showLoading();
-            for (const projectKey of projectKeys) {
+            for (const projectKey of jiraProjectKeys) {
                 const issues = await fetchAllIssues(projectKey);
                 issuesCache.set(projectKey, issues);
             }

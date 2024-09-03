@@ -9,11 +9,9 @@
     <link rel="stylesheet" href="../../assets/style.css">
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="header-container">
-            <h1>Project Metrics</h1>
-            |&nbsp; <a href="quality.html">Quality Metrics</a>
-        </div>
+    <div id="nav-container"></div>
+
+    <div class="container-fluid">
         <div class="mb-2">
             <select id="projectSelect" class="form-select" style="max-width: 180px;" required>
                 <option value="">Select a project</option>
@@ -21,7 +19,6 @@
                 <option value="BEESSC">BEESSC</option>
             </select>
         </div>
-        <div class="mb-3"></div>
         <div class="mt-4" id="loading" style="display: none;">
             <div class="d-flex justify-content-center">
                 <div class="spinner-border text-primary" role="status">
@@ -34,8 +31,6 @@
                 <thead>
                     <tr>
                         <th>Quarter</th>
-                        <!-- <th>Finished Issues</th> -->
-                        <!-- <th>Solved Bugs</th> -->
                         <th>Throughput</th>
                         <th>Velocity (avg)</th>
                         <th>Cycle Time (days)</th>
@@ -52,5 +47,16 @@
         </div>
     </div>
     <script src="../renderer/projectRenderer.js"></script>
+    <script>
+        // Load the common navigation into the container
+        fetch('../views/common/nav.html')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('nav-container').innerHTML = data;
+                
+                // Set the active state for the current page's button
+                document.getElementById('nav-project').classList.add('active');
+            });
+    </script>
 </body>
 </html>

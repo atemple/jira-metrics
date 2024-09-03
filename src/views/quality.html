@@ -9,11 +9,9 @@
     <link rel="stylesheet" href="../../assets/style.css">
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="header-container">
-            <a href="project.html">Project Metrics</a> &nbsp;|
-            &nbsp;<h1>Quality Metrics</h1>
-        </div>
+    <div id="nav-container"></div>
+
+    <div class="container-fluid">
         <div class="mb-2">
             <select id="projectSelect" class="form-select" style="max-width: 180px;" required>
                 <option value="">Select a project</option>
@@ -28,7 +26,7 @@
                 </div>
             </div>
         </div>
-        <div class="mt-4">
+        <div class="mb-5">
             <table class="table">
                 <thead>
                     <tr>
@@ -49,5 +47,16 @@
         </div>
     </div>
     <script src="../renderer/qualityRenderer.js"></script>
+    <script>
+        // Load the common navigation into the container
+        fetch('../views/common/nav.html')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('nav-container').innerHTML = data;
+                
+                // Set the active state for the current page's button
+                document.getElementById('nav-quality').classList.add('active');
+            });
+    </script>
 </body>
 </html>

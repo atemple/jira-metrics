@@ -39,7 +39,8 @@ async function getIssuesByQuarter(allIssues) {
         const throughput = totalIssues;
  
         // Calculate cycle time for all issues
-        const cycleTime = calculateAverageCycleTime(calculateCycleTimeForAllIssues(issues));
+        const totalCycleTime = calculateCycleTimeForAllIssues(issues);
+        const cycleTime = calculateAverageCycleTime(totalCycleTime);
 
         return {
             finishedIssues,
@@ -66,6 +67,7 @@ async function getIssuesByMonth(issues) {
     const resolvedBugsMonthly = [];
     const velocitiesMonthly = [];
     const throughputsMonthly = [];
+    const cycleTimessMonthly = [];
 
     const monthlyIssues = {};
     const startDate = new Date(year, 0, 1);
@@ -80,7 +82,8 @@ async function getIssuesByMonth(issues) {
                 finishedIssues: 0,
                 resolvedBugs: 0,
                 velocity: 0,
-                throughput: 0
+                throughput: 0,
+                cycleTime: 0
             };
         }
         date.setMonth(date.getMonth() + 1);
@@ -95,11 +98,17 @@ async function getIssuesByMonth(issues) {
         if (yearKey >= year && monthlyIssues[monthKey]) {
             if (issue.fields.issuetype.name !== 'Bug') {
                 monthlyIssues[monthKey].finishedIssues += 1;
-                monthlyIssues[monthKey].velocity += issue.fields.customfield_10022 || 0;
             } else {
                 monthlyIssues[monthKey].resolvedBugs += 1;
             }
+            monthlyIssues[monthKey].velocity += issue.fields.customfield_10022 || 0;
             monthlyIssues[monthKey].throughput += 1;
+
+            const cycleTime = monthlyIssues[monthKey].cycleTime;
+            const calculatedCycleTime = calculateCycleTime(issue);
+            if (calculatedCycleTime) {
+                monthlyIssues[monthKey].cycleTime = Math.ceil(cycleTime ? (cycleTime + calculatedCycleTime) / 2 : calculatedCycleTime);
+            }
         }
 
     });
@@ -109,6 +118,8 @@ async function getIssuesByMonth(issues) {
         resolvedBugsMonthly.push(monthData.resolvedBugs);
         velocitiesMonthly.push(monthData.velocity);
         throughputsMonthly.push(monthData.throughput);
+        cycleTimessMonthly.push(monthData.cycleTime);
+
     });
 
     return {
@@ -116,7 +127,8 @@ async function getIssuesByMonth(issues) {
         finishedIssues: finishedIssuesMonthly,
         resolvedBugs: resolvedBugsMonthly,
         velocities: velocitiesMonthly,
-        throughputs: throughputsMonthly
+        throughputs: throughputsMonthly,
+        cycleTimes: cycleTimessMonthly
     };
 }
 
@@ -125,32 +137,39 @@ function calculateCycleTimeForAllIssues(issues) {
     const cycleTimeMap = {};
 
     issues.forEach(issue => {
-        const changelog = issue.changelog;
-        let inProgressTime = null;
-        let doneTime = null;
-
-        changelog.histories.forEach(history => {
-            history.items.forEach(item => {
-                if (item.field === 'status') {
-                    if (item.toString === 'In Development') {
-                        inProgressTime = new Date(history.created);
-                    } else if ((item.toString === 'Done' || item.toString === 'Ready for Prod')) {
-                        doneTime = new Date(history.created);
-                    }
-                }
-            });
-        });
-
-        if (inProgressTime && doneTime) {
-            const cycleTime = (doneTime - inProgressTime) / (1000 * 60 * 60 * 24); // Cycle time in days
-            cycleTimeMap[issue.key] = cycleTime;
-        } else {
-            cycleTimeMap[issue.key] = null; // No valid cycle time found
-        }
+        cycleTimeMap[issue.key] = calculateCycleTime(issue);
     });
 
-    console.log('Cycle time map:', cycleTimeMap);
     return cycleTimeMap;
+}
+
+// Function to calculate cycle time for an issue
+function calculateCycleTime(issue) {
+    const changelog = issue.changelog;
+    let inProgressTime = null;
+    let doneTime = null;
+
+    changelog.histories.forEach(history => {
+        history.items.forEach(item => {
+            if (item.field === 'status') {
+                if (item.toString.toUpperCase() === 'IN DEVELOPMENT') {
+                    inProgressTime = new Date(history.created);
+                } else if ((item.toString.toUpperCase() === 'DONE' || item.toString.toUpperCase() === 'READY FOR PROD')) {
+                    doneTime = new Date(history.created);
+                }
+            }
+        });
+    });
+
+    if (inProgressTime && doneTime) {
+        const timeDiff = Math.abs(doneTime.getTime() - inProgressTime.getTime());
+        const cycleTime = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+        // const cycleTime = (doneTime.getTime() - inProgressTime.getTime()) / (1000 * 60 * 60 * 24); // Cycle time in days
+        return cycleTime;
+    } else {
+        return null; // No valid cycle time found
+    }
 }
 
 function calculateAverageCycleTime(cycleTimeMap) {
@@ -176,7 +195,7 @@ function updateUI(quarters, quarterData, montlyData) {
     updateTable(quarterLabels, finishedIssuesQuarterly, resolvedBugsQuarterly, bugDensityQuarterly, velocitiesQuarterly, throughputsQuarterly, cycleTimeQuarterly);
 
     // Update the chart with monthly data
-    updateChart(montlyData.labels, montlyData.finishedIssues, montlyData.resolvedBugs, montlyData.velocities, montlyData.throughputs);
+    updateChart(montlyData.labels, montlyData.finishedIssues, montlyData.resolvedBugs, montlyData.velocities, montlyData.throughputs, montlyData.cycleTimes);
 }
 
 function updateTable(labels, finishedIssues, resolvedBugs, bugDensities, velocities, throughputs, cycleTimes) {
@@ -189,14 +208,6 @@ function updateTable(labels, finishedIssues, resolvedBugs, bugDensities, velocit
         const quarterCell = document.createElement('td');
         quarterCell.textContent = label;
         row.appendChild(quarterCell);
-
-        // const finishedIssuesCell = document.createElement('td');
-        // finishedIssuesCell.textContent = finishedIssues[index];
-        // row.appendChild(finishedIssuesCell);
-
-        // const resolvedBugsCell = document.createElement('td');
-        // resolvedBugsCell.textContent = resolvedBugs[index];
-        // row.appendChild(resolvedBugsCell);
 
         const throughputCell = document.createElement('td');
         throughputCell.textContent = throughputs[index];
@@ -218,7 +229,7 @@ function updateTable(labels, finishedIssues, resolvedBugs, bugDensities, velocit
     });
 }
 
-function updateChart(labels, finishedIssues, resolvedBugs, velocities, throughputs) {
+function updateChart(labels, finishedIssues, resolvedBugs, velocities, throughputs, cycleTimes) {
     const ctx = document.getElementById('issuesChart').getContext('2d');
 
     if (window.myChart) {
@@ -249,7 +260,17 @@ function updateChart(labels, finishedIssues, resolvedBugs, velocities, throughpu
                     fill: false,
                 },
                 {
-                    label: 'Finished Issues',
+                    label: 'Cycle Time',
+                    data: cycleTimes,
+                    type: 'line', // Specify line chart for velocity
+                    borderColor: chartColors.yellow,
+                    backgroundColor: transparentize(chartColors.yellow, 0.5),
+                    borderWidth: 2,
+                    fill: false,
+                    yAxisID: 'cycleTimeAxis'
+                },
+                {
+                    label: 'Issues Done',
                     data: finishedIssues,
                     borderColor: chartColors.green,
                     backgroundColor: transparentize(chartColors.green, 0.5),
@@ -257,7 +278,7 @@ function updateChart(labels, finishedIssues, resolvedBugs, velocities, throughpu
                     stack: 'combined'
                 },
                 {
-                    label: 'Resolved Bugs',
+                    label: 'Bugs Fixed',
                     data: resolvedBugs,
                     borderColor: chartColors.red,
                     backgroundColor: transparentize(chartColors.red, 0.5),
@@ -271,6 +292,14 @@ function updateChart(labels, finishedIssues, resolvedBugs, velocities, throughpu
                 y: {
                     beginAtZero: true,
                     stacked: true // Enable stacking for the bar chart
+                },
+                cycleTimeAxis: {
+                    beginAtZero: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'days'
+                    },
                 }
             },
             responsive: true,
@@ -296,6 +325,12 @@ async function handleProjectChange() {
     } else {
         console.error('Please select a project.');
     }
+}
+
+// Function to navigate to a different page
+function navigateTo(page) {
+    console.log('Navigating to:', page);
+    window.location.href = page;
 }
 
 // Add event listener for project selection change
