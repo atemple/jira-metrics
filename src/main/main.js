@@ -31,7 +31,7 @@ function createWindow () {
   }
 
   // uncomment to debug
-  window.webContents.openDevTools();
+  // window.webContents.openDevTools();
 
   window.loadFile(path.join(__dirname, '../views/project.html')); 
 
