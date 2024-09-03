@@ -245,11 +245,5 @@ async function handleProjectChange() {
     }
 }
 
-// Function to navigate to a different page
-function navigateTo(page) {
-    console.log('Navigating to:', page);
-    window.location.href = page;
-}
-
 // Add event listener for project selection change
 document.getElementById('projectSelect').addEventListener('change', handleProjectChange);

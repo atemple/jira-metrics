@@ -13,7 +13,7 @@ function createWindow () {
 
   window = new BrowserWindow({
     width: 800,
-    height: 860,
+    height: 880,
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'), // Ensure the correct path here
       contextIsolation: false,
@@ -33,7 +33,14 @@ function createWindow () {
   // uncomment to debug
   // window.webContents.openDevTools();
 
-  window.loadFile(path.join(__dirname, '../views/project.html')); 
+  // Check if all required config values are present
+  if (isConfigComplete(config)) {
+      // Load the default page
+      window.loadFile(path.join(__dirname, '../views/project.html'));
+  } else {
+      // Load the settings page if config is incomplete
+      window.loadFile(path.join(__dirname, '../views/settings.html'));
+  }
 
   // Send config to renderer process
   window.webContents.on('did-finish-load', () => {
@@ -97,6 +104,11 @@ function saveConfig(config) {
   });
 }
 
+// Function to check if the config is complete
+function isConfigComplete(config) {
+  return config.jiraApiToken && config.jiraEmail && config.jiraBaseDomain && config.jiraProjectKeys;
+}
+
 // Listen for 'save-config' events from the renderer
 ipcMain.on('save-config', (event, newConfig) => {
   const configFilePath = path.join(app.getPath('userData'), 'config.json');
@@ -109,4 +121,9 @@ ipcMain.on('save-config', (event, newConfig) => {
 
   // Optionally, send a response back to the renderer to confirm save
   event.sender.send('config-saved', config);
+});
+
+// IPC handler to check if config is complete
+ipcMain.handle('check-config-complete', (event) => {
+  return isConfigComplete(config);
 });
