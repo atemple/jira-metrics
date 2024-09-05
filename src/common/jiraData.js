@@ -21,9 +21,6 @@ db.serialize(() => {
     )`);
 });
 
-// Cache to store Jira API results by projectKey
-const bugsCache = new Map();
-
 // Jira configs
 let jiraApiToken;
 let jiraEmail;
@@ -36,7 +33,6 @@ ipcRenderer.on('load-config', (event, config) => {
     jiraEmail = config.jiraEmail || '';
     jiraBaseDomain = config.jiraBaseDomain || '';
     jiraProjectKeys = config.jiraProjectKeys.split(',') || '';
-
 });
 
 // Create an HTTPS agent that allows self-signed certificates

@@ -30,5 +30,6 @@ window.ipcRenderer.on('config-saved', (event, config) => {
     document.getElementById('jiraBaseDomain').value = config.jiraBaseDomain || '';
     document.getElementById('jiraProjectKeys').value = config.jiraProjectKeys || '';
 
-    window.location.href = 'project.html';
+    ipcRenderer.send('relaunch-app');  // Send message to main process to relaunch
+    // window.location.href = 'project.html';
 });

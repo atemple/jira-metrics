@@ -243,5 +243,19 @@ async function handleProjectChange() {
     }
 }
 
+// Receive and load the config data
+ipcRenderer.on('load-config', (event, config) => {
+    const projectSelect = document.getElementById('projectSelect');
+    const projectKeys = config.jiraProjectKeys.split(',') || '';
+
+    // Dynamically populate the select element with options
+    projectKeys.forEach((projectKey) => {
+        const option = document.createElement('option');
+        option.value = projectKey.trim(); // Set the value as projectKey
+        option.text = projectKey.trim(); // Set the displayed text as projectKey
+        projectSelect.appendChild(option); // Append the option to the select element
+    });
+});
+
 // Add event listener for project selection change
 document.getElementById('projectSelect').addEventListener('change', handleProjectChange);

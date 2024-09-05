@@ -127,3 +127,8 @@ ipcMain.on('save-config', (event, newConfig) => {
 ipcMain.handle('check-config-complete', (event) => {
   return isConfigComplete(config);
 });
+
+ipcMain.on('relaunch-app', () => {
+  app.relaunch();  // Relaunch the app
+  app.quit();  // Quit the current instance
+});
