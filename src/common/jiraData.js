@@ -1,9 +1,27 @@
 const { ipcRenderer } = require('electron');
 const axios = require('axios');
 const https = require('https');
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database('./jiraData.db');
+
+db.serialize(() => {
+    // db.run(`DROP TABLE IF EXISTS jira_data`, (err) => {
+    //     if (err) {
+    //         console.error('Error dropping table:', err);
+    //     } else {
+    //         console.log('Table issues dropped successfully.');
+    //     }
+    // });
+    db.run(`CREATE TABLE IF NOT EXISTS jira_data (
+        id TEXT PRIMARY KEY,
+        projectKey TEXT,
+        dataType TEXT,   -- 'issues' or 'bugs'
+        data TEXT,
+        updatedAt INTEGER
+    )`);
+});
 
 // Cache to store Jira API results by projectKey
-const issuesCache = new Map();
 const bugsCache = new Map();
 
 // Jira configs
@@ -25,7 +43,6 @@ ipcRenderer.on('load-config', (event, config) => {
 const httpsAgent = new https.Agent({
     rejectUnauthorized: false
 });
-
 
 // Fetch issues from Jira
 async function fetchAllIssues(projectKey) {
@@ -109,40 +126,83 @@ function hideLoading() {
     document.getElementById('loading').style.display = 'none';
 }
 
-// Function to preload Jira data for multiple projects
-async function getJiraBugs(projectKey) {
-    try {
-        if (! bugsCache.has(projectKey)) {
-             showLoading();
-             for (const projectKey of jiraProjectKeys) {
-                 const issues = await fetchAllBugs(projectKey);
-                 bugsCache.set(projectKey, issues);
-             }
-             hideLoading();
-         }
-         return bugsCache.get(projectKey);
-         console.log('Preloaded Jira data for all projects.');
-     } catch (error) {
-         console.error('Error preloading Jira data:', error);
-     }
+// Helper function to get the start of the current day
+function getStartOfDayTimestamp() {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0); // Set time to midnight
+    return now.getTime();
 }
 
-// Function to preload Jira data for multiple projects
+// Function to get Jira issues (using caching in the DB)
 async function getJiraIssues(projectKey) {
+    showLoading();
+    const data = await getJiraData(projectKey, 'issues', fetchAllIssues);
+    hideLoading();
+    return data;
+}
+
+// Function to get Jira bugs (using caching in the DB)
+async function getJiraBugs(projectKey) {
+    showLoading();
+    const data = await getJiraData(projectKey, 'bugs', fetchAllBugs);
+    hideLoading();
+    return data;
+}
+
+// Function to fetch Jira data and store it in the database if needed
+async function getJiraData(projectKey, dataType, fetchFunction) {
     try {
-       if (! issuesCache.has(projectKey)) {
-            showLoading();
-            for (const projectKey of jiraProjectKeys) {
-                const issues = await fetchAllIssues(projectKey);
-                issuesCache.set(projectKey, issues);
-            }
-            hideLoading();
-        }
-        return issuesCache.get(projectKey);
-        console.log('Preloaded Jira data for all projects.');
+        const data = new Promise((resolve, reject) => {
+            const today = getStartOfDayTimestamp(); // Get timestamp for the start of the current day
+
+            db.get(`SELECT data, updatedAt FROM jira_data WHERE projectKey = ? AND dataType = ?`, [projectKey, dataType], async (err, row) => {
+                if (err) return reject(err);
+
+                if (row && row.updatedAt >= today) {
+                    // Data is from the current day, return it
+                    console.log(`Data for project ${projectKey} (${dataType}) is up-to-date.`);
+                    resolve(JSON.parse(row.data));
+                } else {
+                    // Data is outdated or doesn't exist, fetch fresh data
+                    console.log(`Data for project ${projectKey} (${dataType}) is outdated. Fetching new data...`);
+                    const data = await fetchFunction(projectKey);
+                    const jsonData = JSON.stringify(data);
+
+                    if (row) {
+                        // Update existing row
+                        db.run(`UPDATE jira_data SET data = ?, updatedAt = ? WHERE projectKey = ? AND dataType = ?`, [
+                            jsonData,
+                            Date.now(), // Current timestamp
+                            projectKey,
+                            dataType
+                        ], (err) => {
+                            if (err) return reject(err);
+                            resolve(data);
+                        });
+                    } else {
+                        // Insert new row
+                        db.run(`INSERT INTO jira_data (id, projectKey, dataType, data, updatedAt) VALUES (?, ?, ?, ?, ?)`, [
+                            `${projectKey}_${dataType}`, // Unique ID by combining projectKey and dataType
+                            projectKey,
+                            dataType,
+                            jsonData,
+                            Date.now(), // Current timestamp
+                        ], (err) => {
+                            if (err) return reject(err);
+                            resolve(data);
+                        });
+                    }
+                }
+            });
+
+        });
+
+        return data;
+
     } catch (error) {
-        console.error('Error preloading Jira data:', error);
-    }
+        console.error('Error fetching data from database:', error);
+        return null;
+    } 
 }
 
 // Export the cache and preload function

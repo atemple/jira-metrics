@@ -1,5 +1,3 @@
-console.log('navRenderer.js loaded');  // Add this line for debugging
-
 const { ipcRenderer } = require('electron');
 
 // Make ipcRenderer available globally
@@ -21,9 +19,6 @@ function navigateTo(page) {
         window.location.href = 'settings.html'; // Redirect to settings on error
     });
 }
-
-// Attach navigateTo to the window object
-// window.navigateTo = navigateTo;
 
 // Export the navigateTo function
 module.exports = {
