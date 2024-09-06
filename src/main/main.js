@@ -110,7 +110,7 @@ function isConfigComplete(config) {
 }
 
 // Listen for 'save-config' events from the renderer
-ipcMain.on('save-config', (event, newConfig) => {
+ipcMain.on('save-config', (event, newConfig, reload) => {
   const configFilePath = path.join(app.getPath('userData'), 'config.json');
 
   // Update the global config object
@@ -120,7 +120,7 @@ ipcMain.on('save-config', (event, newConfig) => {
   saveConfig(config);
 
   // Optionally, send a response back to the renderer to confirm save
-  event.sender.send('config-saved', config);
+  event.sender.send('config-saved', config, reload);
 });
 
 // IPC handler to check if config is complete
